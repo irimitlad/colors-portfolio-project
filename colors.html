@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta charset="UTF-8">
+    <title>Simple Web App for Working with Colors</title>
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-exp.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-icons.min.css">
+    <style>
+        html, body, main, article {
+            height: 100%;
+        }
+
+        body {
+            flex-direction: column;
+            margin: 0;
+        }
+
+        main, h1 {
+            flex-grow: 1;
+        }
+
+        article > div {
+            overflow: hidden;
+        }
+
+        form {
+            left: 50%;
+            bottom: 24px;
+            transform: translate(-50%, 0);
+            width: max-content;
+        }
+
+        input, select {
+            width: 315px !important;
+        }
+
+        button {
+            bottom: 120px;
+        }
+
+        code {
+            width: max-content;
+        }
+
+        .input-group input {
+            width: 180px !important;
+        }
+
+        .input-group select {
+            width: 90px !important;
+            background-color: #f7f8f9 !important;
+        }
+
+        .input-group select ~ input {
+            width: 45px !important;
+        }
+
+        .w-flex-max {
+            flex-grow: 1;
+            flex-shrink: 1;
+        }
+
+        .mt-4 {
+            margin-top: 16px;
+        }
+
+        .b-3 {
+            border: 12px solid white;
+        }
+
+        .bg-light {
+            background-color: white;
+        }
+
+        .p-3 {
+            padding: 12px;
+        }
+
+        .text-light {
+            color: white;
+        }
+    </style>
+    <script src="https://unpkg.com/react@16/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script>
+        "use strict";
+
+        class ColorData {
+            constructor(theColorValue) {
+                this.setFromColorValue(theColorValue);
+            }
+
+            createCopy() {
+                let copy = new ColorData("#ffffff");
+                try {
+                    copy.format = this.format;
+                    copy.values = [this.values[0], this.values[1], this.values[2]];
+                } catch(error) {
+                    copy.format = null;
+                    copy.values = null;
+                }
+                return copy;
+            }
+
+            toString() {
+                return this.getColorValue();
+            }
+
+            setFromColorValue(theColorValue) {
+                this.values = (theColorValue => {
+                    if (typeof theColorValue !== "string") return null;
+                    theColorValue = theColorValue.trim().toLowerCase();
+                    switch (theColorValue.length) {
+                        case 3:
+                            theColorValue = "#" + theColorValue;
+                        case 4:
+                            theColorValue = theColorValue[0] + theColorValue[1] + theColorValue[1] + theColorValue[2] + theColorValue[2] + theColorValue[3] + theColorValue[3];
+                        case 7:
+                            if (theColorValue[0] === "#") theColorValue = theColorValue.slice(1); else return null;
+                        case 6:
+                            for (let oneColorValueCharacterNumber = 0; oneColorValueCharacterNumber < 6; oneColorValueCharacterNumber++) switch (theColorValue[oneColorValueCharacterNumber]) {
+                                case "0": case "1": case "2": case "3": case "4": case "5": case "6": case "7": case "8": case "9": case "a": case "b": case "c": case "d": case "e": case "f":
+                                    break;
+                                default:
+                                    return null;
+                            }
+                            return ["RGB", parseInt(theColorValue[0] + theColorValue[1], 16) / 255, parseInt(theColorValue[2] + theColorValue[3], 16) / 255, parseInt(theColorValue[4] + theColorValue[5], 16) / 255];
+                        default:
+                            if (theColorValue.length < 10) return null;
+                            let values = [theColorValue.slice(0, 3)];
+                            theColorValue = theColorValue.slice(3).trim();
+                            switch (values[0]) {
+                                case "rgb":
+                                    values[0] = "RGB";
+                                    break;
+                                case "hsl":
+                                    values[0] = "HSL";
+                                    break;
+                                case "hsb": case "hsv":
+                                    values[0] = "HSB";
+                                    break;
+                                default:
+                                    return null;
+                            }
+                            if ((theColorValue[0] !== "(") || (theColorValue[theColorValue.length - 1] !== ")")) return null;
+                            theColorValue = theColorValue.slice(1, theColorValue.length - 1).split(",");
+                            if (theColorValue.length !== 3) return null;
+                            values.push(null);
+                            values.push(null);
+                            values.push(null);
+                            for (let oneValueNumber = 0; oneValueNumber <= 2; oneValueNumber++) {
+                                let isValueNegative = false,
+                                    valueFractionalLevel = null,
+                                    isValuePercentage = false;
+                                for (let oneValueColorValueCharacterNumber = 0; oneValueColorValueCharacterNumber < theColorValue[oneValueNumber].length; oneValueColorValueCharacterNumber++) switch (theColorValue[oneValueNumber][oneValueColorValueCharacterNumber]) {
+                                    case " ":
+                                        break;
+                                    case "-":
+                                        if ((values[oneValueNumber + 1] !== null) || (isValueNegative) || (valueFractionalLevel !== null) || (isValuePercentage)) return null;
+                                        isValueNegative = true;
+                                        break;
+                                    case "0": case "1": case "2": case "3": case "4": case "5": case "6": case "7": case "8": case "9":
+                                        if (isValuePercentage) return null;
+                                        if (values[oneValueNumber + 1] === null) values[oneValueNumber + 1] = 0;
+                                        values[oneValueNumber + 1] = values[oneValueNumber + 1] * 10 + Number(theColorValue[oneValueNumber][oneValueColorValueCharacterNumber]);
+                                        if (valueFractionalLevel !== null) valueFractionalLevel++;
+                                        break;
+                                    case ".":
+                                        if ((valueFractionalLevel !== null) || (isValuePercentage)) return null;
+                                        valueFractionalLevel = 0;
+                                        break;
+                                    case "%":
+                                        if ((values[oneValueNumber + 1] === null) || (isValuePercentage)) return null;
+                                        isValuePercentage = true;
+                                        break;
+                                    default:
+                                        return null;
+                                }
+                                if ((values[oneValueNumber + 1] === null) || (valueFractionalLevel === 0)) return null;
+                                if (isValueNegative) values[oneValueNumber + 1] = -values[oneValueNumber + 1];
+                                if (valueFractionalLevel !== null) values[oneValueNumber + 1] = values[oneValueNumber + 1] / 10 ** valueFractionalLevel;
+                                if (isValuePercentage) values[oneValueNumber + 1] = values[oneValueNumber + 1] / 100;
+                            }
+                            if (values[0] === "RGB") for (let oneValueNumber = 1; oneValueNumber <= 3; oneValueNumber++) {
+                                if ((values[oneValueNumber] < 0) || (values[oneValueNumber] > 255)) return null;
+                                values[oneValueNumber] = values[oneValueNumber] / 255;
+                            } else {
+                                values[1] = values[1] % 360;
+                                if (values[1] < 0) values[1] = values[1] + 360;
+                                for (let oneValueNumber = 2; oneValueNumber <= 3; oneValueNumber++) if ((values[oneValueNumber] < 0) || (values[oneValueNumber] > 1)) return null;
+                            }
+                            return values;
+                    }
+                })(theColorValue);
+                if (this.values === null) this.format = null; else this.format = this.values.shift();
+                return this;
+            }
+
+            getColorValue(theColorValueFormat) {
+                const getValueAsText = theValue => {
+                    theValue = theValue.toFixed(2);
+                    for ( ; theValue[theValue.length - 1] === "0"; theValue = theValue.slice(0, theValue.length - 1));
+                    return theValue[theValue.length - 1] === "." ? theValue.slice(0, theValue.length - 1) : theValue;
+                };
+                if (typeof theColorValueFormat === "undefined") return this.format === null ? "NOT A COLOR" : this.format === "RGB" ? "rgb(" + (this.values[0] * 255).toFixed() + ", " + (this.values[1] * 255).toFixed() + ", " + (this.values[2] * 255).toFixed() + ")" : (this.format === "HSL" ? "hsl(" : "hsb(") + getValueAsText(this.values[0]) + ", " + getValueAsText(this.values[1] * 100) + "%, " + getValueAsText(this.values[2] * 100) + "%)";
+                switch (theColorValueFormat) {
+                    case "RGB":
+                        return this.createCopy().changeFormatToRgb().getColorValue();
+                    case "HEX":
+                        return this.format === null ? "NOT A COLOR" : this.createCopy().changeFormatToRgb().values.reduce((theColorValue, theValue) => (typeof theColorValue === "string" ? theColorValue : "#") + (Math.round(theValue * 255).toString(16).length === 1 ? "0" : "") + Math.round(theValue * 255).toString(16), null);
+                    case "HSL":
+                        return this.createCopy().changeFormatToHsl().getColorValue();
+                    case "HSB": case "HSV":
+                        return this.createCopy().changeFormatToHsb().getColorValue();
+                }
+                throw new Error("NOT A MODE");
+            }
+
+            changeFormatToRgb() {
+                switch (this.format) {
+                    case "HSB":
+                        this.changeFormatToHsl();
+                    case "HSL":
+                        this.format = "RGB";
+                        const chroma = this.values[1] * (1 - (this.values[2] * 2 - 1 < 0 ? 1 - this.values[2] * 2 : this.values[2] * 2 - 1)),
+                            normalizedHue = this.values[0] / 60,
+                            temporaryValues = [
+                                chroma * (1 - (normalizedHue % 2 - 1 < 0 ? 1 - normalizedHue % 2 : normalizedHue % 2 - 1)),
+                                this.values[2] - chroma / 2
+                            ];
+                        this.values = normalizedHue < 1 ? [chroma, temporaryValues[0], 0] : normalizedHue < 2 ? [temporaryValues[0], chroma, 0] : normalizedHue < 3 ? [0, chroma, temporaryValues[0]] : normalizedHue < 4 ? [0, temporaryValues[0], chroma] : normalizedHue < 5 ? [temporaryValues[0], 0, chroma] : [chroma, 0, temporaryValues[0]];
+                        this.values = [this.values[0] + temporaryValues[1], this.values[1] + temporaryValues[1], this.values[2] + temporaryValues[1]];
+                        if (this.values[0] < 0) this.values[0] = 0;
+                        if (this.values[0] > 1) this.values[0] = 1;
+                        if (this.values[1] < 0) this.values[1] = 0;
+                        if (this.values[1] > 1) this.values[1] = 1;
+                        if (this.values[2] < 0) this.values[2] = 0;
+                        if (this.values[2] > 1) this.values[2] = 1;
+                }
+                return this;
+            }
+
+            changeFormatToHsl() {
+                switch (this.format) {
+                    case "RGB":
+                        this.format = "HSL";
+                        const minimalValue = this.values[0] < this.values[1] ? (this.values[0] < this.values[2] ? this.values[0] : this.values[2]) : this.values[1] < this.values[2] ? this.values[1] : this.values[2],
+                            maximalValue = this.values[0] > this.values[1] ? (this.values[0] > this.values[2] ? this.values[0] : this.values[2]) : this.values[1] > this.values[2] ? this.values[1] : this.values[2];
+                        if (maximalValue === minimalValue) {
+                            this.values[0] = 0;
+                        } else if (this.values[0] === maximalValue) {
+                            this.values[0] = (this.values[1] - this.values[2]) / (maximalValue - minimalValue) * 60;
+                        } else if (this.values[1] === maximalValue) {
+                            this.values[0] = (this.values[2] - this.values[0]) / (maximalValue - minimalValue) * 60 + 120;
+                        } else {
+                            this.values[0] = (this.values[0] - this.values[1]) / (maximalValue - minimalValue) * 60 + 240;
+                        }
+                        this.values[0] %= 360;
+                        if (this.values[0] < 0) this.values[0] += 360;
+                        this.values[2] = (maximalValue + minimalValue) * 0.5;
+                        if (this.values[2] < 0) this.values[2] = 0;
+                        if (this.values[2] > 1) this.values[2] = 1;
+                        this.values[1] = maximalValue === minimalValue ? 0 : this.values[2] <= 0.5 ? (maximalValue - minimalValue) / (this.values[2] * 2) : (maximalValue - minimalValue) / ((1 - this.values[2]) * 2);
+                        if (this.values[1] < 0) this.values[1] = 0;
+                        if (this.values[1] > 1) this.values[1] = 1;
+                        break;
+                    case "HSB":
+                        this.format = "HSL";
+                        let lightness = this.values[2] * (1 - this.values[1] / 2);
+                        if (lightness < 0) lightness = 0;
+                        if (lightness > 1) lightness = 1;
+                        this.values[1] = (lightness === 0) || (lightness === 1) ? 0 : (this.values[2] - lightness) / (1 - lightness < lightness ? 1 - lightness : lightness);
+                        if (this.values[1] < 0) this.values[1] = 0;
+                        if (this.values[1] > 1) this.values[1] = 1;
+                        this.values[2] = lightness;
+                }
+                return this;
+            }
+
+            changeFormatToHsb() {
+                switch (this.format) {
+                    case "RGB":
+                        this.changeFormatToHsl();
+                    case "HSL":
+                        this.format = "HSB";
+                        let brightness = this.values[2] + this.values[1] * (1 - this.values[2] < this.values[2] ? 1 - this.values[2] : this.values[2]);
+                        if (brightness < 0) brightness = 0;
+                        if (brightness > 1) brightness = 1;
+                        this.values[1] = brightness === 0 ? 0 : 2 * (1 - this.values[2] / brightness);
+                        if (this.values[1] < 0) this.values[1] = 0;
+                        if (this.values[1] > 1) this.values[1] = 1;
+                        this.values[2] = brightness;
+                }
+                return this;
+            }
+
+            static reduceColorHexFormattedValue(theColorHexFormattedValue) {
+                return "#" + theColorHexFormattedValue[1] + theColorHexFormattedValue[3] + theColorHexFormattedValue[5];
+            }
+        }
+    </script>
+    <script type="text/babel">
+        "use strict";
+
+        class All extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = {
+                    is_active_page_first: true
+                };
+            }
+
+            render() {
+                return (
+                    <React.Fragment>
+                        <header className="d-flex p-2">
+                            <button className="btn btn-action s-circle"
+                                    onClick={() => this.setState({is_active_page_first: !(this.state.is_active_page_first)})}>
+                                <i className="icon icon-arrow-left" />
+                            </button>
+                            <h1 className="h3 mb-0 text-center">
+                                {this.state.is_active_page_first ? "Color Value Format Conversion" : "Colors Ramp Creation"}
+                            </h1>
+                            <button className="btn btn-action s-circle"
+                                    onClick={() => this.setState({is_active_page_first: !(this.state.is_active_page_first)})}>
+                                <i className="icon icon-arrow-right" />
+                            </button>
+                        </header>
+                        <main className="bg-gray">
+                            <ColorValueFormatConversionPage {...(this.state.is_active_page_first ? {} : {no_rendering: void 0})} />
+                            <ColorsRampCreationPage {...(this.state.is_active_page_first ? {no_rendering: void 0} : {})} />
+                        </main>
+                    </React.Fragment>
+                );
+            }
+        }
+
+        class ColorValueFormatConversionPage extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = {color_value: null};
+            }
+
+            handleFieldsTextChangingEvent = () => theFieldsTextChangingEvent => {
+                const colorData = new ColorData(theFieldsTextChangingEvent.target.value);
+                if (colorData.getColorValue() !== "NOT A COLOR") this.setState({color_value: colorData.getColorValue("HEX")}); else if (this.state.color_value === null) this.setState({color_value: "#ffffff"});
+                if (theFieldsTextChangingEvent.target.id !== "color_rgb_value_field") document.getElementById("color_rgb_value_field").value = colorData.getColorValue("RGB");
+                if (theFieldsTextChangingEvent.target.id !== "color_hex_value_field") document.getElementById("color_hex_value_field").value = colorData.getColorValue("HEX");
+                if (theFieldsTextChangingEvent.target.id !== "color_hsl_value_field") document.getElementById("color_hsl_value_field").value = colorData.getColorValue("HSL");
+                if (theFieldsTextChangingEvent.target.id !== "color_hsb_value_field") document.getElementById("color_hsb_value_field").value = colorData.getColorValue("HSB");
+            }
+
+            handleFieldsTextChangingFinishingEvent = () => theFieldsTextChangingFinishingEvent => {
+                let colorData = new ColorData(theFieldsTextChangingFinishingEvent.target.value);
+                if (colorData.getColorValue() === "NOT A COLOR") colorData = new ColorData(this.state.color_value);
+                document.getElementById("color_rgb_value_field").value = colorData.getColorValue("RGB");
+                document.getElementById("color_hex_value_field").value = colorData.getColorValue("HEX");
+                document.getElementById("color_hsl_value_field").value = colorData.getColorValue("HSL");
+                document.getElementById("color_hsb_value_field").value = colorData.getColorValue("HSB");
+            }
+
+            render() {
+                return (
+                    <RenderingPage {...(this.props.hasOwnProperty("no_rendering") ? {no_rendering: void 0} : {})}
+                                   colors_value={this.state.color_value}>
+                        <div className="columns">
+                            <div className="column">
+                                <div className="form-group">
+                                    <label className="form-label"
+                                           htmlFor="color_rgb_value_field">RGB color</label>
+                                    <input id="color_rgb_value_field"
+                                           className="form-input input-lg"
+                                           value={this.state.color_value === null ? "rgb(255, 255, 255)" : null}
+                                           onBlur={this.handleFieldsTextChangingFinishingEvent()}
+                                           onInput={this.handleFieldsTextChangingEvent()} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label"
+                                           htmlFor="color_hex_value_field">Hexadecimal RGB color</label>
+                                    <input id="color_hex_value_field"
+                                           className="form-input input-lg"
+                                           value={this.state.color_value === null ? "#ffffff" : null}
+                                           onBlur={this.handleFieldsTextChangingFinishingEvent()}
+                                           onInput={this.handleFieldsTextChangingEvent()} />
+                                </div>
+                            </div>
+                            <div className="divider-vert" />
+                            <div className="column">
+                                <div className="form-group">
+                                    <label className="form-label"
+                                           htmlFor="color_hsl_value_field">HSL color</label>
+                                    <input id="color_hsl_value_field"
+                                           className="form-input input-lg"
+                                           value={this.state.color_value === null ? "hsl(0, 0%, 100%)" : null}
+                                           onBlur={this.handleFieldsTextChangingFinishingEvent()}
+                                           onInput={this.handleFieldsTextChangingEvent()} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label"
+                                           htmlFor="color_hsb_value_field">HSV/HSB Color</label>
+                                    <input id="color_hsb_value_field"
+                                           className="form-input input-lg"
+                                           value={this.state.color_value === null ? "hsb(0, 0%, 100%)" : null}
+                                           onBlur={this.handleFieldsTextChangingFinishingEvent()}
+                                           onInput={this.handleFieldsTextChangingEvent()} />
+                                </div>
+                            </div>
+                        </div>
+                    </RenderingPage>
+                );
+            }
+        }
+
+        class ColorsRampCreationPage extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = {
+                    lower_part_colors_amount: 1,
+                    higher_part_colors_amount: 1,
+                    is_colors_data_format_hsb: null,
+                    first_color_data: null,
+                    key_color_data: null,
+                    last_color_data: null,
+                    is_first_color_hue_higher: null,
+                    is_last_color_hue_higher: null,
+                    colors_hue_function: "double linear",
+                    colors_hsl_saturation_function: "double linear",
+                    colors_hsb_saturation_function: "double linear",
+                    colors_lightness_function: "double linear",
+                    colors_brightness_function: "double linear",
+                    colors_value: null
+                };
+            }
+
+            setStateValues(theStateValuesContainer) {
+                for (let oneStateValueName in theStateValuesContainer) this.state[oneStateValueName] = theStateValuesContainer[oneStateValueName];
+                this.setState(theStateValuesContainer);
+            }
+
+            updateColorsValue() {
+                const calculateColorsValue = () => {
+                    const calculateDoubleLinearFunctionValues = (theLinearFunctionFirstValue,
+                                                                 theLinearFunctionKeyValue,
+                                                                 theLinearFunctionLastValue) => {
+                        let linearFunctionValues = [theLinearFunctionFirstValue],
+                            linearFunctionValuesStep = (theLinearFunctionKeyValue - theLinearFunctionFirstValue) / this.state.lower_part_colors_amount;
+                        for (let oneLinearFunctionLowerPartValueArgument = 1; oneLinearFunctionLowerPartValueArgument < this.state.lower_part_colors_amount; oneLinearFunctionLowerPartValueArgument++) linearFunctionValues.push(theLinearFunctionFirstValue + linearFunctionValuesStep * oneLinearFunctionLowerPartValueArgument);
+                        linearFunctionValues.push(theLinearFunctionKeyValue);
+                        linearFunctionValuesStep = (theLinearFunctionLastValue - theLinearFunctionKeyValue) / this.state.higher_part_colors_amount;
+                        for (let oneLinearFunctionHigherPartValueArgument = 1; oneLinearFunctionHigherPartValueArgument < this.state.higher_part_colors_amount; oneLinearFunctionHigherPartValueArgument++) linearFunctionValues.push(theLinearFunctionKeyValue + linearFunctionValuesStep * oneLinearFunctionHigherPartValueArgument);
+                        linearFunctionValues.push(theLinearFunctionLastValue);
+                        return linearFunctionValues;
+                    }, calculateSimpleDoubleQuadraticFunctionValues = (theQuadraticFunctionFirstValue,
+                                                                       theQuadraticFunctionKeyValue,
+                                                                       theQuadraticFunctionLastValue) => {
+                        const quadraticFunctionValuesAmount = this.state.lower_part_colors_amount + this.state.higher_part_colors_amount;
+                        let quadraticFunctionValues = [];
+                        if ((theQuadraticFunctionKeyValue === theQuadraticFunctionFirstValue) && (theQuadraticFunctionKeyValue === theQuadraticFunctionLastValue)) {
+                            for (let oneQuadraticFunctionValueNumber = 0; oneQuadraticFunctionValueNumber <= quadraticFunctionValuesAmount; oneQuadraticFunctionValueNumber++) quadraticFunctionValues.push(theQuadraticFunctionKeyValue);
+                            return quadraticFunctionValues;
+                        }
+                        let quadraticFunctionValuesNormalizationAdditionParameter,
+                            quadraticFunctionValuesNormalizationMultiplicationParameter;
+                        if ((theQuadraticFunctionKeyValue <= theQuadraticFunctionFirstValue) && (theQuadraticFunctionKeyValue <= theQuadraticFunctionLastValue)) {
+                            quadraticFunctionValuesNormalizationAdditionParameter = theQuadraticFunctionKeyValue;
+                            quadraticFunctionValuesNormalizationMultiplicationParameter = theQuadraticFunctionFirstValue < theQuadraticFunctionLastValue ? theQuadraticFunctionLastValue - theQuadraticFunctionKeyValue : theQuadraticFunctionFirstValue - theQuadraticFunctionKeyValue;
+                        } else if ((theQuadraticFunctionKeyValue >= theQuadraticFunctionFirstValue) && (theQuadraticFunctionKeyValue >= theQuadraticFunctionLastValue)) {
+                            quadraticFunctionValuesNormalizationAdditionParameter = theQuadraticFunctionFirstValue < theQuadraticFunctionLastValue ? theQuadraticFunctionFirstValue : theQuadraticFunctionLastValue;
+                            quadraticFunctionValuesNormalizationMultiplicationParameter = theQuadraticFunctionKeyValue - quadraticFunctionValuesNormalizationAdditionParameter;
+                        } else if (theQuadraticFunctionFirstValue < theQuadraticFunctionLastValue) {
+                            quadraticFunctionValuesNormalizationAdditionParameter = theQuadraticFunctionFirstValue;
+                            quadraticFunctionValuesNormalizationMultiplicationParameter = theQuadraticFunctionLastValue - theQuadraticFunctionFirstValue;
+                        } else {
+                            quadraticFunctionValuesNormalizationAdditionParameter = theQuadraticFunctionLastValue;
+                            quadraticFunctionValuesNormalizationMultiplicationParameter = theQuadraticFunctionFirstValue - theQuadraticFunctionLastValue;
+                        }
+                        theQuadraticFunctionFirstValue = (theQuadraticFunctionFirstValue - quadraticFunctionValuesNormalizationAdditionParameter) / quadraticFunctionValuesNormalizationMultiplicationParameter;
+                        theQuadraticFunctionKeyValue = (theQuadraticFunctionKeyValue - quadraticFunctionValuesNormalizationAdditionParameter) / quadraticFunctionValuesNormalizationMultiplicationParameter;
+                        theQuadraticFunctionLastValue = (theQuadraticFunctionLastValue - quadraticFunctionValuesNormalizationAdditionParameter) / quadraticFunctionValuesNormalizationMultiplicationParameter;
+                        const quadraticFunctionValuesDelta = (theQuadraticFunctionLastValue - theQuadraticFunctionFirstValue) * (theQuadraticFunctionKeyValue < 0.5 ? theQuadraticFunctionKeyValue : 1 - theQuadraticFunctionKeyValue) * 2,
+                            quadraticFunctionKeyValueArgument = this.state.lower_part_colors_amount / quadraticFunctionValuesAmount;
+                        quadraticFunctionValues.push(theQuadraticFunctionFirstValue);
+                        let quadraticFunctionFirstParameter = (quadraticFunctionValuesDelta * quadraticFunctionKeyValueArgument + theQuadraticFunctionFirstValue - theQuadraticFunctionKeyValue) / quadraticFunctionKeyValueArgument ** 2,
+                            quadraticFunctionSecondParameter = quadraticFunctionValuesDelta - quadraticFunctionFirstParameter * quadraticFunctionKeyValueArgument * 2;
+                        for (let oneQuadraticFunctionLowerPartValueArgument = 1; oneQuadraticFunctionLowerPartValueArgument < this.state.lower_part_colors_amount; oneQuadraticFunctionLowerPartValueArgument++) {
+                            const normalizedQuadraticFunctionLowerPartValueArgument = oneQuadraticFunctionLowerPartValueArgument / quadraticFunctionValuesAmount;
+                            quadraticFunctionValues.push(quadraticFunctionFirstParameter * normalizedQuadraticFunctionLowerPartValueArgument ** 2 + quadraticFunctionSecondParameter * normalizedQuadraticFunctionLowerPartValueArgument + theQuadraticFunctionFirstValue);
+                        }
+                        quadraticFunctionValues.push(theQuadraticFunctionKeyValue);
+                        quadraticFunctionFirstParameter = (quadraticFunctionValuesDelta * (quadraticFunctionKeyValueArgument - 1) + theQuadraticFunctionLastValue - theQuadraticFunctionKeyValue) / (quadraticFunctionKeyValueArgument ** 2 - quadraticFunctionKeyValueArgument * 2 + 1);
+                        quadraticFunctionSecondParameter = quadraticFunctionValuesDelta - quadraticFunctionFirstParameter * quadraticFunctionKeyValueArgument * 2;
+                        const quadraticFunctionThirdParameter = theQuadraticFunctionLastValue - quadraticFunctionFirstParameter - quadraticFunctionSecondParameter;
+                        for (let oneQuadraticFunctionHigherPartValueArgument = this.state.lower_part_colors_amount + 1; oneQuadraticFunctionHigherPartValueArgument < quadraticFunctionValuesAmount; oneQuadraticFunctionHigherPartValueArgument++) {
+                            const normalizedQuadraticFunctionHigherPartValueArgument = oneQuadraticFunctionHigherPartValueArgument / quadraticFunctionValuesAmount;
+                            quadraticFunctionValues.push(quadraticFunctionFirstParameter * normalizedQuadraticFunctionHigherPartValueArgument ** 2 + quadraticFunctionSecondParameter * normalizedQuadraticFunctionHigherPartValueArgument + quadraticFunctionThirdParameter);
+                        }
+                        quadraticFunctionValues.push(theQuadraticFunctionLastValue);
+                        return quadraticFunctionValues.map(theQuadraticFunctionValue => theQuadraticFunctionValue * quadraticFunctionValuesNormalizationMultiplicationParameter + quadraticFunctionValuesNormalizationAdditionParameter);
+                    }, colorsDataValues = [(() => {
+                        let colorsDataHueValue = [this.state.first_color_data.values[0], this.state.key_color_data.values[0], this.state.last_color_data.values[0]];
+                        switch (this.state.is_first_color_hue_higher) {
+                            case false:
+                                if (colorsDataHueValue[0] > colorsDataHueValue[1]) colorsDataHueValue[0] -= 360;
+                                break;
+                            case true:
+                                if (colorsDataHueValue[0] < colorsDataHueValue[1]) colorsDataHueValue[0] += 360;
+                                break;
+                            default:
+                                if (colorsDataHueValue[0] > colorsDataHueValue[1]) {
+                                    if (colorsDataHueValue[0] - colorsDataHueValue[1] > colorsDataHueValue[1] - colorsDataHueValue[0] + 360) colorsDataHueValue[0] -= 360;
+                                } else if (colorsDataHueValue[1] - colorsDataHueValue[0] > colorsDataHueValue[0] - colorsDataHueValue[1] + 360) colorsDataHueValue[0] += 360;
+                        }
+                        switch (this.state.is_last_color_hue_higher) {
+                            case false:
+                                if (colorsDataHueValue[2] > colorsDataHueValue[1]) colorsDataHueValue[2] -= 360;
+                                break;
+                            case true:
+                                if (colorsDataHueValue[2] < colorsDataHueValue[1]) colorsDataHueValue[2] += 360;
+                                break;
+                            default:
+                                if (colorsDataHueValue[2] > colorsDataHueValue[1]) {
+                                    if (colorsDataHueValue[2] - colorsDataHueValue[1] > colorsDataHueValue[1] - colorsDataHueValue[2] + 360) colorsDataHueValue[2] -= 360;
+                                } else if (colorsDataHueValue[1] - colorsDataHueValue[2] > colorsDataHueValue[2] - colorsDataHueValue[1] + 360) colorsDataHueValue[2] += 360;
+                        }
+                        if (this.state.colors_hue_function === "double linear") return calculateDoubleLinearFunctionValues(colorsDataHueValue[0], colorsDataHueValue[1], colorsDataHueValue[2]);
+                        return calculateSimpleDoubleQuadraticFunctionValues(colorsDataHueValue[0], colorsDataHueValue[1], colorsDataHueValue[2]);
+                    })(), (() => {
+                        if (this.state.is_colors_data_format_hsb) {
+                            if (this.state.colors_hsb_saturation_function === "double linear") return calculateDoubleLinearFunctionValues(this.state.first_color_data.createCopy().changeFormatToHsb().values[1], this.state.key_color_data.createCopy().changeFormatToHsb().values[1], this.state.last_color_data.createCopy().changeFormatToHsb().values[1]);
+                            return calculateSimpleDoubleQuadraticFunctionValues(this.state.first_color_data.createCopy().changeFormatToHsb().values[1], this.state.key_color_data.createCopy().changeFormatToHsb().values[1], this.state.last_color_data.createCopy().changeFormatToHsb().values[1]);
+                        }
+                        if (this.state.colors_hsl_saturation_function === "double linear") return calculateDoubleLinearFunctionValues(this.state.first_color_data.values[1], this.state.key_color_data.values[1], this.state.last_color_data.values[1]);
+                        return calculateSimpleDoubleQuadraticFunctionValues(this.state.first_color_data.values[1], this.state.key_color_data.values[1], this.state.last_color_data.values[1]);
+                    })(), (() => {
+                        if (this.state.is_colors_data_format_hsb) {
+                            if (this.state.colors_brightness_function === "double linear") return calculateDoubleLinearFunctionValues(this.state.first_color_data.createCopy().changeFormatToHsb().values[2], this.state.key_color_data.createCopy().changeFormatToHsb().values[2], this.state.last_color_data.createCopy().changeFormatToHsb().values[2]);
+                            return calculateSimpleDoubleQuadraticFunctionValues(this.state.first_color_data.createCopy().changeFormatToHsb().values[2], this.state.key_color_data.createCopy().changeFormatToHsb().values[2], this.state.last_color_data.createCopy().changeFormatToHsb().values[2]);
+                        }
+                        if (this.state.colors_lightness_function === "double linear") return calculateDoubleLinearFunctionValues(this.state.first_color_data.values[2], this.state.key_color_data.values[2], this.state.last_color_data.values[2]);
+                        return calculateSimpleDoubleQuadraticFunctionValues(this.state.first_color_data.values[2], this.state.key_color_data.values[2], this.state.last_color_data.values[2]);
+                    })()];
+                    let colorsValue = [],
+                        temp = [];
+                    for (let oneColorValueNumber = 0; oneColorValueNumber < colorsDataValues[0].length; oneColorValueNumber++) {
+                        colorsValue.push(new ColorData(null));
+                        colorsValue[colorsValue.length - 1].format = this.state.is_colors_data_format_hsb ? "HSB" : "HSL";
+                        colorsValue[colorsValue.length - 1].values = [
+                            colorsDataValues[0][oneColorValueNumber] < 0 ? colorsDataValues[0][oneColorValueNumber] % 360 + 360 : colorsDataValues[0][oneColorValueNumber] % 360,
+                            colorsDataValues[1][oneColorValueNumber] < 0 ? 0 : colorsDataValues[1][oneColorValueNumber] > 1 ? 1 : colorsDataValues[1][oneColorValueNumber],
+                            colorsDataValues[2][oneColorValueNumber] < 0 ? 0 : colorsDataValues[2][oneColorValueNumber] > 1 ? 1 : colorsDataValues[2][oneColorValueNumber]
+                        ];
+                        temp.push(colorsValue[oneColorValueNumber].getColorValue());
+                        colorsValue[oneColorValueNumber] = colorsValue[oneColorValueNumber].getColorValue("HEX");
+                    }
+                    return colorsValue;
+                };
+                this.setStateValues({colors_value: calculateColorsValue()});
+            }
+
+            handleControllersValueChangingFinishingEvent = () => theControllersValueChangingFinishingEvent => {
+                if (this.state.is_colors_data_format_hsb === null) this.setStateValues({is_colors_data_format_hsb: false});
+                switch (theControllersValueChangingFinishingEvent.target.id) {
+                    case "first_part_values_amount_field":
+                        const lowerPartValuesAmount = parseInt(theControllersValueChangingFinishingEvent.target.value, 10);
+                        if (isNaN(lowerPartValuesAmount) || (lowerPartValuesAmount < 1)) {
+                            this.setStateValues({lower_part_colors_amount: 1});
+                            theControllersValueChangingFinishingEvent.target.value = "1";
+                        } else {
+                            this.setStateValues({lower_part_colors_amount: lowerPartValuesAmount});
+                            theControllersValueChangingFinishingEvent.target.value = lowerPartValuesAmount;
+                        }
+                        break;
+                    case "second_part_values_amount_field":
+                        const higherPartValuesAmount = parseInt(theControllersValueChangingFinishingEvent.target.value, 10);
+                        if (isNaN(higherPartValuesAmount) || (higherPartValuesAmount < 1)) {
+                            this.setStateValues({higher_part_colors_amount: 1});
+                            theControllersValueChangingFinishingEvent.target.value = "1";
+                        } else {
+                            this.setStateValues({higher_part_colors_amount: higherPartValuesAmount});
+                            theControllersValueChangingFinishingEvent.target.value = higherPartValuesAmount;
+                        }
+                        break;
+                    case "first_color_value_field":
+                        let firstColorData = new ColorData(theControllersValueChangingFinishingEvent.target.value);
+                        if (firstColorData.format === null) {
+                            theControllersValueChangingFinishingEvent.target.value = "";
+                            this.setStateValues({first_color_data: null});
+                        } else {
+                            theControllersValueChangingFinishingEvent.target.value = theControllersValueChangingFinishingEvent.target.value.trim().length <= 4 ? ColorData.reduceColorHexFormattedValue(firstColorData.getColorValue("HEX")) : theControllersValueChangingFinishingEvent.target.value.trim().length <= 7 ? firstColorData.getColorValue("HEX") : firstColorData.getColorValue();
+                            this.setStateValues({first_color_data: firstColorData.changeFormatToHsl()});
+                        }
+                        break;
+                    case "key_color_value_field":
+                        let keyColorData = new ColorData(theControllersValueChangingFinishingEvent.target.value);
+                        if (keyColorData.format === null) {
+                            theControllersValueChangingFinishingEvent.target.value = "";
+                            this.setStateValues({key_color_data: null});
+                        } else {
+                            theControllersValueChangingFinishingEvent.target.value = theControllersValueChangingFinishingEvent.target.value.trim().length <= 4 ? ColorData.reduceColorHexFormattedValue(keyColorData.getColorValue("HEX")) : theControllersValueChangingFinishingEvent.target.value.trim().length <= 7 ? keyColorData.getColorValue("HEX") : keyColorData.getColorValue();
+                            this.setStateValues({key_color_data: keyColorData.changeFormatToHsl()});
+                        }
+                        break;
+                    case "last_color_value_field":
+                        let lastColorData = new ColorData(theControllersValueChangingFinishingEvent.target.value);
+                        if (lastColorData.format === null) {
+                            theControllersValueChangingFinishingEvent.target.value = "";
+                            this.setStateValues({last_color_data: null});
+                        } else {
+                            theControllersValueChangingFinishingEvent.target.value = theControllersValueChangingFinishingEvent.target.value.trim().length <= 4 ? ColorData.reduceColorHexFormattedValue(lastColorData.getColorValue("HEX")) : theControllersValueChangingFinishingEvent.target.value.trim().length <= 7 ? lastColorData.getColorValue("HEX") : lastColorData.getColorValue();
+                            this.setStateValues({last_color_data: lastColorData.changeFormatToHsl()});
+                        }
+                        break;
+                    case "first_color_value_direction_checker":
+                        this.setStateValues({is_first_color_hue_higher: theControllersValueChangingFinishingEvent.target.value === "higher" ? true : theControllersValueChangingFinishingEvent.target.value === "lower" ? false : null});
+                        break;
+                    case "last_color_value_direction_checker":
+                        this.setStateValues({is_last_color_hue_higher: theControllersValueChangingFinishingEvent.target.value === "higher" ? true : theControllersValueChangingFinishingEvent.target.value === "lower" ? false : null});
+                        break;
+                    case "colors_hue_function_checker":
+                        this.setStateValues({colors_hue_function: theControllersValueChangingFinishingEvent.target.value});
+                        break;
+                    case "colors_saturation_function_checker":
+                        if (this.state.is_colors_data_format_hsb) this.setStateValues({colors_hsb_saturation_function: theControllersValueChangingFinishingEvent.target.value}); else this.setStateValues({colors_hsl_saturation_function: theControllersValueChangingFinishingEvent.target.value});
+                        break;
+                    case "colors_lightness_function_checker":
+                        if (this.state.is_colors_data_format_hsb) this.setStateValues({colors_brightness_function: theControllersValueChangingFinishingEvent.target.value}); else this.setStateValues({colors_lightness_function: theControllersValueChangingFinishingEvent.target.value});
+                        break;
+                    default:
+                        this.setStateValues({is_colors_data_format_hsb: theControllersValueChangingFinishingEvent.target.checked});
+                        if (theControllersValueChangingFinishingEvent.target.checked) {
+                            document.getElementById("colors_saturation_function_checker").value = this.state.colors_hsb_saturation_function === null ? "auto" : this.state.colors_hsb_saturation_function;
+                            document.getElementById("colors_lightness_function_checker").value = this.state.colors_brightness_function === null ? "auto" : this.state.colors_brightness_function;
+                        } else {
+                            document.getElementById("colors_saturation_function_checker").value = this.state.colors_hsl_saturation_function === null ? "auto" : this.state.colors_hsl_saturation_function;
+                            document.getElementById("colors_lightness_function_checker").value = this.state.colors_lightness_function === null ? "auto" : this.state.colors_lightness_function;
+                        }
+                }
+                if ((this.state.first_color_data === null) || (this.state.key_color_data === null) || (this.state.last_color_data === null)) this.setStateValues({colors_value: null}); else this.updateColorsValue();
+            }
+
+            render() {
+                return (
+                    <RenderingPage {...(this.props.hasOwnProperty("no_rendering") ? {no_rendering: void 0} : {})}
+                                   colors_value={this.state.colors_value}
+                                   {...(this.state.colors_value === null ? {} : {no_colors_value_displaying: void 0})}>
+                        <div className="columns">
+                            <div className="column">
+                                <div className="form-group">
+                                    <label className="form-label"
+                                           htmlFor="first_color_value_field">Lower colors, their position and amount</label>
+                                    <div className="input-group">
+                                        <input id="first_color_value_field"
+                                               className="form-input input-lg"
+                                               placeholder="First color value"
+                                               onBlur={this.handleControllersValueChangingFinishingEvent()} />
+                                        <select id="first_color_value_direction_checker"
+                                                className="form-select select-lg"
+                                                onChange={this.handleControllersValueChangingFinishingEvent()}>
+                                            <option value="auto">Auto</option>
+                                            <option value="higher">Higher</option>
+                                            <option value="lower">Lower</option>
+                                        </select>
+                                        <input id="first_part_values_amount_field"
+                                               className="form-input input-lg bg-gray"
+                                               value={this.state.is_colors_data_format_hsb === null ? "1" : null}
+                                               onBlur={this.handleControllersValueChangingFinishingEvent()}
+                                               onInput={() => {this.setState({is_colors_data_format_hsb: false})}} />
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label"
+                                           htmlFor="key_color_value_field">Key color</label>
+                                    <input id="key_color_value_field"
+                                           className="form-input input-lg"
+                                           placeholder="Key color value"
+                                           onBlur={this.handleControllersValueChangingFinishingEvent()} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label"
+                                           htmlFor="last_color_value_field">Higher colors, their position and amount</label>
+                                    <div className="input-group">
+                                        <input id="last_color_value_field"
+                                               className="form-input input-lg"
+                                               placeholder="Last color value"
+                                               onBlur={this.handleControllersValueChangingFinishingEvent()} />
+                                        <select id="last_color_value_direction_checker"
+                                                className="form-select select-lg"
+                                                onChange={this.handleControllersValueChangingFinishingEvent()}>
+                                            <option value="auto">Auto</option>
+                                            <option value="higher">Higher</option>
+                                            <option value="lower">Lower</option>
+                                        </select>
+                                        <input id="second_part_values_amount_field"
+                                               className="form-input input-lg bg-gray"
+                                               value={this.state.is_colors_data_format_hsb === null ? "1" : null}
+                                               onBlur={this.handleControllersValueChangingFinishingEvent()}
+                                               onInput={() => {this.setState({is_colors_data_format_hsb: false})}} />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="divider-vert" />
+                            <div className="column">
+                                <div className="form-group">
+                                    <label className="form-label"
+                                           htmlFor="colors_hue_function_checker">Colors hue function</label>
+                                    <select id="colors_hue_function_checker"
+                                            className="form-select select-lg"
+                                            onChange={this.handleControllersValueChangingFinishingEvent()}>
+                                        <option value="double linear">Double linear</option>
+                                        <option value="simple double quadratic">Simple double quadratic</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label"
+                                           htmlFor="colors_saturation_function_checker">Colors saturation function</label>
+                                    <select id="colors_saturation_function_checker"
+                                            className="form-select select-lg"
+                                            onChange={this.handleControllersValueChangingFinishingEvent()}>
+                                        <option value="double linear">Double linear</option>
+                                        <option value="simple double quadratic">Simple double quadratic</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label"
+                                           htmlFor="colors_lightness_function_checker">Colors {this.state.is_colors_data_format_hsb ? "brightness" : "lightness"} function</label>
+                                    <select id="colors_lightness_function_checker"
+                                            className="form-select select-lg"
+                                            onChange={this.handleControllersValueChangingFinishingEvent()}>
+                                        <option value="double linear">Double linear</option>
+                                        <option value="simple double quadratic">Simple double quadratic</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-switch">
+                                        <input id="colors_model_checker"
+                                               type="checkbox"
+                                               className="input-lg"
+                                               onChange={this.handleControllersValueChangingFinishingEvent()} />
+                                        <i className="form-icon"></i> Use HSV/HSB color model
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </RenderingPage>
+                );
+            }
+        }
+
+        class RenderingPage extends React.Component {
+            render() {
+                return (
+                    <article className={this.props.hasOwnProperty("no_rendering") ? "d-hide" : "d-flex"}>
+                        <form className="p-absolute s-rounded bg-gray b-3 p-3">{this.props.children}</form>
+                        <ColorsVisualizationLine colors_value={this.props.colors_value === null ? null : this.props.colors_value}
+                                                 {...(this.props.hasOwnProperty("no_colors_value_displaying") ? {} : {no_colors_value_displaying: void 0})} />
+                    </article>
+                );
+            }
+        }
+
+        class ColorsVisualizationLine extends React.Component {
+            handleColorCardsClickingEvent = theColorCardColorValue => () => {
+                const temporaryField = document.createElement("input");
+                temporaryField.value = theColorCardColorValue;
+                temporaryField.setAttribute("readonly", "");
+                temporaryField.style.position = "absolute";
+                temporaryField.style.opacity  = "0";
+                document.body.appendChild(temporaryField);
+                temporaryField.select();
+                document.execCommand("copy");
+                document.body.removeChild(temporaryField);
+            }
+
+            render() {
+                return this.props.colors_value === null ? null : (Array.isArray(this.props.colors_value) ? this.props.colors_value : [this.props.colors_value]).map(theColorValue => <div className="w-flex-max p-2 c-hand"
+                                                                                                                                                                                          style={{backgroundColor: theColorValue}}
+                                                                                                                                                                                          style={{backgroundColor: theColorValue}}
+                                                                                                                                                                                          onClick={this.handleColorCardsClickingEvent(theColorValue)}>{this.props.hasOwnProperty("no_colors_value_displaying") ? "" : <code className={"p-centered mt-4 " + ((new ColorData(theColorValue)).changeFormatToHsl().values[2] < 0.5 ? "bg-light text-large text-bold text-dark" : "bg-dark text-large text-bold text-light")}>{theColorValue}</code>}</div>);
+            }
+        }
+
+        ReactDOM.render(<All />, document.getElementsByTagName("body")[0]);
+    </script>
+</head>
+<body class="d-flex"></body>
+</html>
